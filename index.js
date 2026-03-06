@@ -18,13 +18,7 @@ exports.resize = function resize(image, width = 0, height = 0, opts = {}) {
   width = Math.round(width)
   height = Math.round(height)
 
-  const buffer = binding.resize(
-    image.data,
-    image.width,
-    image.height,
-    width,
-    height
-  )
+  const buffer = binding.resize(image.data, image.width, image.height, width, height)
 
   return {
     data: Buffer.from(buffer),
