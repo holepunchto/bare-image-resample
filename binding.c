@@ -1,11 +1,17 @@
 #include <assert.h>
 #include <bare.h>
 #include <js.h>
+#include <stdint.h>
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_STATIC
 
 #include <stb_image_resize2.h>
+
+// A pixel is four bytes, one 8-bit channel each for R, G, B and A. It is the
+// only layout this binding handles: it is what STBIR_RGBA asks stbir_resize()
+// for, and it is how both the source and the target buffers are laid out.
+static const int64_t BYTES_PER_PIXEL = 4;
 
 static js_value_t *
 bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
@@ -20,7 +26,8 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
   assert(argc == 5);
 
   uint8_t *source;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &source, NULL, NULL, NULL);
+  size_t source_len;
+  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &source, &source_len, NULL, NULL);
   assert(err == 0);
 
   int64_t source_width;
@@ -39,10 +46,46 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_int64(env, argv[4], &target_height);
   assert(err == 0);
 
+  if (
+    source_width <= 0 || source_width > INT32_MAX ||
+    source_height <= 0 || source_height > INT32_MAX
+  ) {
+    err = js_throw_error(env, NULL, "Invalid source dimensions");
+    assert(err == 0);
+
+    return NULL;
+  }
+
+  if ((uint64_t) source_width * (uint64_t) source_height * BYTES_PER_PIXEL > (uint64_t) source_len) {
+    err = js_throw_error(env, NULL, "Source buffer too small for its dimensions");
+    assert(err == 0);
+
+    return NULL;
+  }
+
+  if (
+    target_width <= 0 || target_width > INT32_MAX ||
+    target_height <= 0 || target_height > INT32_MAX
+  ) {
+    err = js_throw_error(env, NULL, "Invalid target dimensions");
+    assert(err == 0);
+
+    return NULL;
+  }
+
+  uint64_t target_len = (uint64_t) target_width * (uint64_t) target_height * BYTES_PER_PIXEL;
+
+  if (target_len > SIZE_MAX) {
+    err = js_throw_error(env, NULL, "Target image too large");
+    assert(err == 0);
+
+    return NULL;
+  }
+
   js_value_t *result;
 
   uint8_t *target;
-  err = js_create_unsafe_arraybuffer(env, target_width * target_height * 4, (void **) &target, &result);
+  err = js_create_unsafe_arraybuffer(env, (size_t) target_len, (void **) &target, &result);
   assert(err == 0);
 
   stbir_resize(
