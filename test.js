@@ -1,11 +1,15 @@
 const test = require('brittle')
 const jpeg = require('bare-jpeg')
 const { resize } = require('.')
-const { makeImage } = require('./test/helpers')
 
 const grapefruit = require('./test/fixtures/grapefruit.jpg', {
   with: { type: 'binary' }
 })
+
+// An RGBA image whose buffer really is width * height * 4 bytes.
+function makeImage(width, height, fill = 0xff) {
+  return { width, height, data: Buffer.alloc(width * height * 4, fill) }
+}
 
 test('resize .jpg', (t) => {
   const resized = resize(jpeg.decode(grapefruit), 100)
@@ -43,8 +47,6 @@ test('resize with an options object', (t) => {
 })
 
 test('rejects a source buffer smaller than its dimensions', (t) => {
-  // Before this check the resampler read width * height * 4 bytes regardless
-  // of the buffer's real length, copying heap memory into the output.
   t.exception(
     () => resize({ width: 64, height: 64, data: Buffer.alloc(4) }, 8),
     /Source buffer too small/
