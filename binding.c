@@ -8,6 +8,11 @@
 
 #include <stb_image_resize2.h>
 
+// A pixel is four bytes, one 8-bit channel each for R, G, B and A. It is the
+// only layout this binding handles: it is what STBIR_RGBA asks stbir_resize()
+// for, and it is how both the source and the target buffers are laid out.
+static const int64_t BYTES_PER_PIXEL = 4;
+
 static js_value_t *
 bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
   int err;
@@ -41,9 +46,6 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_int64(env, argv[4], &target_height);
   assert(err == 0);
 
-  // stbir_resize() takes the dimensions as int and reads
-  // source_width * source_height * 4 bytes, so bound them before trusting the
-  // caller's word for how big the source is.
   if (
     source_width <= 0 || source_width > INT32_MAX ||
     source_height <= 0 || source_height > INT32_MAX
@@ -54,7 +56,7 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
     return NULL;
   }
 
-  if ((uint64_t) source_width * (uint64_t) source_height * 4 > (uint64_t) source_len) {
+  if ((uint64_t) source_width * (uint64_t) source_height * BYTES_PER_PIXEL > (uint64_t) source_len) {
     err = js_throw_error(env, NULL, "Source buffer too small for its dimensions");
     assert(err == 0);
 
@@ -71,7 +73,7 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
     return NULL;
   }
 
-  uint64_t target_len = (uint64_t) target_width * (uint64_t) target_height * 4;
+  uint64_t target_len = (uint64_t) target_width * (uint64_t) target_height * BYTES_PER_PIXEL;
 
   if (target_len > SIZE_MAX) {
     err = js_throw_error(env, NULL, "Target image too large");
