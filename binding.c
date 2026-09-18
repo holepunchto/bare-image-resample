@@ -13,6 +13,10 @@
 // for, and it is how both the source and the target buffers are laid out.
 static const int64_t BYTES_PER_PIXEL = 4;
 
+// Cap the resampled pixel count to keep the requested dimensions from reaching
+// the allocator. 256 Mpx at 4 bytes per pixel covers up to a 16384x16384 image.
+#define BARE_IMAGE_RESAMPLE_MAX_PIXELS (1ull << 28)
+
 static js_value_t *
 bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
   int err;
@@ -73,6 +77,16 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
     return NULL;
   }
 
+  if (
+    (uint64_t) source_width * (uint64_t) source_height > BARE_IMAGE_RESAMPLE_MAX_PIXELS ||
+    (uint64_t) target_width * (uint64_t) target_height > BARE_IMAGE_RESAMPLE_MAX_PIXELS
+  ) {
+    err = js_throw_error(env, NULL, "Image dimensions exceed maximum");
+    assert(err == 0);
+
+    return NULL;
+  }
+
   uint64_t target_len = (uint64_t) target_width * (uint64_t) target_height * BYTES_PER_PIXEL;
 
   if (target_len > SIZE_MAX) {
@@ -86,7 +100,8 @@ bare_image_resample_resize(js_env_t *env, js_callback_info_t *info) {
 
   uint8_t *target;
   err = js_create_unsafe_arraybuffer(env, (size_t) target_len, (void **) &target, &result);
-  assert(err == 0);
+
+  if (err < 0) return NULL;
 
   stbir_resize(
     source,
