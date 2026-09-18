@@ -73,3 +73,10 @@ test('rejects a target that rounds down to zero', (t) => {
 test('rejects negative target dimensions', (t) => {
   t.exception(() => resize(makeImage(4, 4), -5), /Invalid target dimensions/)
 })
+
+test('rejects dimensions beyond the pixel cap', (t) => {
+  t.exception(
+    () => resize(makeImage(4, 4), { width: 100000, height: 100000 }),
+    /dimensions exceed maximum/
+  )
+})
