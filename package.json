@@ -32,7 +32,7 @@
   "devDependencies": {
     "bare-jpeg": "^1.0.2",
     "brittle": "^3.4.0",
-    "cmake-bare": "^1.1.2",
+    "cmake-bare": "^1.10.1",
     "cmake-fetch": "^1.4.6",
     "lunte": "^1.8.0",
     "prettier": "^3.3.3",
